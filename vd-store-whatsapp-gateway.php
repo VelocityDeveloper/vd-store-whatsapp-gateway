@@ -3,7 +3,7 @@
 /**
  * Plugin Name: VD Store WhatsApp Gateway
  * Description: Add-on notifikasi WhatsApp otomatis untuk VD Store dengan provider yang bisa diganti.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Dev Team Velocitydeveloper.com
  * Author URI:  https://velocitydeveloper.com/
  * Text Domain: vd-store-whatsapp-gateway
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('VD_STORE_WA_GATEWAY_VERSION', '1.0.0');
+define('VD_STORE_WA_GATEWAY_VERSION', '1.1.0');
 define('VD_STORE_WA_GATEWAY_PATH', plugin_dir_path(__FILE__));
 define('VD_STORE_WA_GATEWAY_URL', plugin_dir_url(__FILE__));
 
@@ -45,6 +45,45 @@ function vd_store_whatsapp_gateway_missing_notice()
     echo '</p></div>';
 }
 
+function vd_store_whatsapp_gateway()
+{
+    static $plugin = null;
+
+    if ($plugin instanceof \VdStoreWhatsappGateway\Plugin) {
+        return $plugin;
+    }
+
+    if (!class_exists('\\WpStore\\Core\\Plugin')) {
+        return null;
+    }
+
+    $plugin = new \VdStoreWhatsappGateway\Plugin();
+
+    return $plugin;
+}
+
+function vd_store_whatsapp_gateway_send_message(array $payload)
+{
+    $plugin = vd_store_whatsapp_gateway();
+    if (!$plugin instanceof \VdStoreWhatsappGateway\Plugin) {
+        return new \WP_Error('vd_store_whatsapp_gateway_unavailable', __('Plugin WhatsApp Gateway tidak tersedia.', 'vd-store-whatsapp-gateway'));
+    }
+
+    return $plugin->dispatch_notification($payload);
+}
+
+function vd_store_whatsapp_gateway_should_send_to_buyer()
+{
+    $plugin = vd_store_whatsapp_gateway();
+    return $plugin instanceof \VdStoreWhatsappGateway\Plugin ? $plugin->should_send_to_buyer() : false;
+}
+
+function vd_store_whatsapp_gateway_should_send_to_seller()
+{
+    $plugin = vd_store_whatsapp_gateway();
+    return $plugin instanceof \VdStoreWhatsappGateway\Plugin ? $plugin->should_send_to_seller() : false;
+}
+
 function vd_store_whatsapp_gateway_bootstrap()
 {
     if (!class_exists('\\WpStore\\Core\\Plugin')) {
@@ -52,8 +91,10 @@ function vd_store_whatsapp_gateway_bootstrap()
         return;
     }
 
-    $plugin = new \VdStoreWhatsappGateway\Plugin();
-    $plugin->run();
+    $plugin = vd_store_whatsapp_gateway();
+    if ($plugin instanceof \VdStoreWhatsappGateway\Plugin) {
+        $plugin->run();
+    }
 }
 
 add_action('plugins_loaded', 'vd_store_whatsapp_gateway_bootstrap');

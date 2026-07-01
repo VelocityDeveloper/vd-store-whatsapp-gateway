@@ -12,11 +12,20 @@ class Plugin
     public const PROVIDER_VELOCITY = 'velocity';
     public const PROVIDER_CUSTOM = 'custom';
 
+    private $booted = false;
+
     public function run()
     {
+        if ($this->booted) {
+            return;
+        }
+
+        $this->booted = true;
+
         add_action('admin_menu', [$this, 'register_admin_menu'], 25);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('wp_store_after_create_order', [$this, 'handle_order_created'], 20, 4);
+        add_action('vd_store_whatsapp_gateway_send', [$this, 'handle_dispatch_action'], 10, 1);
     }
 
     public function register_admin_menu()
@@ -130,6 +139,18 @@ class Plugin
         }
 
         return $this->has_provider_configuration();
+    }
+
+    public function should_send_to_buyer()
+    {
+        $settings = $this->get_settings();
+        return $this->is_enabled() && !empty($settings['send_to_buyer']);
+    }
+
+    public function should_send_to_seller()
+    {
+        $settings = $this->get_settings();
+        return $this->is_enabled() && !empty($settings['send_to_seller']);
     }
 
     public function render_payment_method_toggle()
@@ -564,6 +585,23 @@ class Plugin
         }
 
         return $decoded;
+    }
+
+    private function normalize_dispatch_payload(array $payload)
+    {
+        $context = isset($payload['context']) && is_array($payload['context']) ? $payload['context'] : [];
+
+        return [
+            'to' => $this->normalize_phone((string) ($payload['to'] ?? '')),
+            'message' => trim((string) ($payload['message'] ?? '')),
+            'source' => sanitize_key((string) ($payload['source'] ?? 'vd-store')),
+            'event' => sanitize_key((string) ($payload['event'] ?? 'manual')),
+            'subject_type' => sanitize_key((string) ($payload['subject_type'] ?? '')),
+            'subject_id' => absint($payload['subject_id'] ?? 0),
+            'context' => $context,
+            'meta' => isset($payload['meta']) && is_array($payload['meta']) ? $payload['meta'] : [],
+            'log_role' => sanitize_key((string) ($payload['log_role'] ?? '')),
+        ];
     }
 
     private function build_message($role, array $context)

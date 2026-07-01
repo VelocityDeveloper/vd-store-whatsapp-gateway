@@ -29,8 +29,74 @@ Saat order berhasil dibuat di VD Store, addon ini akan:
 - mengirim pesan ke pembeli
 - mengirim pesan ke penjual/admin
 
+Selain flow bawaan order core, plugin ini sekarang juga menyediakan **contract kirim umum** yang netral provider. Jadi addon lain seperti marketplace bisa langsung mendorong notifikasi ke gateway tanpa perlu tahu detail provider.
+
 Addon ini tidak menambah metode pembayaran baru.  
 Fungsinya murni untuk **notifikasi WhatsApp otomatis**.
+
+## Contract Umum untuk Addon Lain
+
+Ada 2 pintu integrasi yang bisa dipakai addon lain:
+
+### 1. Helper function
+
+```php
+vd_store_whatsapp_gateway_send_message([
+    'to' => '6281234567890',
+    'message' => 'Ada order baru untuk seller.',
+    'source' => 'velocity-marketplace',
+    'event' => 'seller_new_order',
+    'subject_type' => 'order',
+    'subject_id' => 123,
+    'context' => [
+        'order_number' => 'INV-001',
+        'seller_name' => 'Toko A',
+    ],
+    'meta' => [
+        'seller_id' => 45,
+    ],
+]);
+```
+
+### 2. Action hook
+
+```php
+do_action('vd_store_whatsapp_gateway_send', [
+    'to' => '6281234567890',
+    'message' => 'Ada order baru untuk seller.',
+    'source' => 'velocity-marketplace',
+    'event' => 'seller_new_order',
+    'subject_type' => 'order',
+    'subject_id' => 123,
+]);
+```
+
+### Field payload
+
+- `to` = nomor tujuan. Wajib.
+- `message` = isi pesan siap kirim. Wajib.
+- `source` = asal addon, misalnya `vd-store`, `velocity-marketplace`, dll.
+- `event` = nama event internal addon, misalnya `seller_new_order`.
+- `subject_type` = tipe object, misalnya `order`.
+- `subject_id` = ID object terkait.
+- `context` = context tambahan untuk kebutuhan logika/filter.
+- `meta` = metadata tambahan dari addon pengirim.
+- `log_role` = opsional. Dipakai jika ingin masuk ke log order buyer/seller bawaan.
+
+### Hook internal gateway
+
+- `vd_store_whatsapp_gateway_dispatch_payload` → filter payload sebelum kirim
+- `vd_store_whatsapp_gateway_dispatched` → action sesudah kirim
+- `vd_store_whatsapp_gateway_notifications_sent` → action setelah flow order bawaan core berjalan
+
+## Integrasi Marketplace
+
+`velocity-marketplace` bisa memakai contract ini untuk mengirim notif seller marketplace yang tidak bisa diwakili oleh `store_wa` global milik core.
+
+Contoh use case:
+- seller mendapat notif order baru untuk toko miliknya
+- buyer mendapat notif saat seller mengubah status order marketplace
+- addon lain bisa mengirim notif event sendiri tanpa menambah adapter provider baru di gateway
 
 ## Menu Pengaturan
 
